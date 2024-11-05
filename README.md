@@ -17,7 +17,11 @@ Command Syntax
 github-activity [--format=<format>] <username>
 ```
 
-### Examples
+#### Options
+--format: Output format, either summary or all (default: summary).
+
+
+## Examples
 To get a summary of recent activity for a user:
 ```sh
 github-activity EssaAlshammri
