@@ -26,3 +26,5 @@ To get a summary of recent activity for a user:
 ```sh
 github-activity EssaAlshammri
 ```
+
+https://roadmap.sh/projects/github-user-activity
