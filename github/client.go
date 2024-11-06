@@ -1,27 +1,45 @@
-package adapters
+package github
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-
-	"github.com/EssaAlshammri/github-activity/domain"
 )
 
-type GithubAdapter struct {
-	client *http.Client
+type Client struct {
+	baseURL    string
+	httpClient *http.Client
 }
 
-func NewGithubAdapter() *GithubAdapter {
-	return &GithubAdapter{
-		client: &http.Client{},
+type Event struct {
+	ID        string     `json:"id"`
+	Type      string     `json:"type"`
+	Repo      Repository `json:"repo"`
+	CreatedAt string     `json:"created_at"`
+}
+
+type Repository struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+type ActivitySummary struct {
+	Description string
+	Count       int
+	RepoName    string
+}
+
+func NewClient() *Client {
+	return &Client{
+		baseURL:    "https://api.github.com",
+		httpClient: &http.Client{},
 	}
 }
 
-func (ga *GithubAdapter) GetUserActivity(username string) (domain.Events, error) {
-	url := fmt.Sprintf("https://api.github.com/users/%s/events?per_page=100", username)
-	resp, err := ga.client.Get(url)
+func (c *Client) GetUserActivity(username string) ([]Event, error) {
+	url := fmt.Sprintf("%s/users/%s/events?per_page=100", c.baseURL, username)
+	resp, err := c.httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
@@ -31,21 +49,16 @@ func (ga *GithubAdapter) GetUserActivity(username string) (domain.Events, error)
 		return nil, fmt.Errorf("failed to fetch events: %s", resp.Status)
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var events domain.Events
-	if err := json.Unmarshal(body, &events); err != nil {
+	var events []Event
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
 		return nil, err
 	}
 
 	return events, nil
 }
 
-func (ga *GithubAdapter) GetActivitySummary(username string) (domain.ActivitySummaries, error) {
-	events, err := ga.GetUserActivity(username)
+func (c *Client) GetActivitySummary(username string) ([]ActivitySummary, error) {
+	events, err := c.GetUserActivity(username)
 	if err != nil {
 		return nil, err
 	}
@@ -58,12 +71,11 @@ func (ga *GithubAdapter) GetActivitySummary(username string) (domain.ActivitySum
 		summaryMap[event.Type][event.Repo.Name]++
 	}
 
-	var summaries domain.ActivitySummaries
+	var summaries []ActivitySummary
 	for eventType, repos := range summaryMap {
 		for repoName, count := range repos {
-			description := formatDescription(eventType, count, repoName)
-			summaries = append(summaries, domain.ActivitySummary{
-				Description: description,
+			summaries = append(summaries, ActivitySummary{
+				Description: formatEventDescription(eventType, count, repoName),
 				Count:       count,
 				RepoName:    repoName,
 			})
@@ -73,7 +85,7 @@ func (ga *GithubAdapter) GetActivitySummary(username string) (domain.ActivitySum
 	return summaries, nil
 }
 
-func formatDescription(eventType string, count int, repoName string) string {
+func formatEventDescription(eventType string, count int, repoName string) string {
 	switch eventType {
 	case "PushEvent":
 		return fmt.Sprintf("Pushed %d commit(s) to %s", count, repoName)

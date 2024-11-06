@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/EssaAlshammri/github-activity/adapters"
-	"github.com/EssaAlshammri/github-activity/service"
+	"github.com/EssaAlshammri/github-activity/github"
 )
 
 const usage = `GitHub User Activity CLI
@@ -19,7 +18,7 @@ Options:
 
 Example:
     github-activity EssaAlshammri
-    github-activity --format=all EssaAlshammari`
+    github-activity --format=all EssaAlshammri`
 
 func main() {
 	format := flag.String("format", "summary", "Output format: 'summary' or 'all'")
@@ -32,12 +31,11 @@ func main() {
 	}
 
 	username := args[0]
-	githubAdapter := adapters.NewGithubAdapter()
-	activityService := service.NewActivityService(githubAdapter)
+	client := github.NewClient()
 
 	switch *format {
 	case "summary":
-		summaries, err := activityService.FetchActivitySummary(username)
+		summaries, err := client.GetActivitySummary(username)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -54,7 +52,7 @@ func main() {
 		}
 
 	case "all":
-		events, err := activityService.FetchUserActivity(username)
+		events, err := client.GetUserActivity(username)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
